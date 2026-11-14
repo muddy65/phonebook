@@ -8,9 +8,10 @@ public class MainDashboard extends JFrame {
     private final LoginPage loginPage;
     private final SignupPage signupPage;
     private final PasswordResetPage passwordResetPage;
+    private final AdminSetupPage adminSetupPage;
     private Component activeWorkspace;
 
-    public MainDashboard() {
+    public MainDashboard() throws SQLException {
         super("PhoneBook");
         Image phonebookIcon = AuthPageStyle.loadPhonebookImage();
         if (phonebookIcon != null) setIconImage(phonebookIcon);
@@ -24,6 +25,7 @@ public class MainDashboard extends JFrame {
         loginPage = new LoginPage();
         signupPage = new SignupPage();
         passwordResetPage = new PasswordResetPage();
+        adminSetupPage = new AdminSetupPage();
 
         loginPage.setOnSignupClick(() -> cardLayout.show(mainPanel, "SIGNUP"));
         loginPage.setOnForgotPasswordClick(() -> cardLayout.show(mainPanel, "RESET"));
@@ -32,12 +34,37 @@ public class MainDashboard extends JFrame {
         signupPage.setSignupAction(this::signUp);
         passwordResetPage.setOnBackToLogin(() -> cardLayout.show(mainPanel, "LOGIN"));
         passwordResetPage.setResetAction(this::resetPassword);
+        adminSetupPage.setSetupAction(this::createInitialAdmin);
 
         mainPanel.add(loginPage.getContentPanel(), "LOGIN");
         mainPanel.add(signupPage.getContentPanel(), "SIGNUP");
         mainPanel.add(passwordResetPage.getContentPanel(), "RESET");
+        mainPanel.add(adminSetupPage.getContentPanel(), "ADMIN_SETUP");
         add(mainPanel);
-        cardLayout.show(mainPanel, "LOGIN");
+        cardLayout.show(mainPanel, DatabaseHelper.isUserTableEmpty() ? "ADMIN_SETUP" : "LOGIN");
+    }
+
+    private void createInitialAdmin(String name, String address, String email, String phoneNumber,
+                                    char[] password, char[] confirmation) {
+        try {
+            String error = Validation.createInitialAdmin(name, address, email, phoneNumber,
+                    password, confirmation);
+            if (error != null) {
+                JOptionPane.showMessageDialog(this, error, "Administrator setup",
+                        JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            JOptionPane.showMessageDialog(this,
+                    "Administrator account created. You can now log in as muddy.",
+                    "Setup complete", JOptionPane.INFORMATION_MESSAGE);
+            cardLayout.show(mainPanel, "LOGIN");
+        } catch (SQLException ex) {
+            showDatabaseError(ex);
+        } finally {
+            clear(password);
+            clear(confirmation);
+            adminSetupPage.clearPasswords();
+        }
     }
 
     private void signUp(String name, String address, String username, char[] password,

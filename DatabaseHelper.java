@@ -16,10 +16,10 @@ import java.util.List;
 /** MySQL access for user accounts and each account's private contact list. */
 public final class DatabaseHelper {
     // Set these values for your local MySQL server.
-    private static final String URL = "jdbc:mysql://localhost:3306/contacts";//"jdbc:mysql://3f4EcWQAsYeGxbg.root:T5v6Q4eoSdS4t809@gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/sys";
-    private static final String SERVER_URL = "jdbc:mysql://localhost:3306/"; //"gateway01.ap-southeast-1.prod.aws.tidbcloud.com";
-    private static final String USERNAME = "muddy";//"3f4EcWQAsYeGxbg.root";
-    private static final String PASSWORD = "@muddy";//"T5v6Q4eoSdS4t809";
+    private static final String URL = "jdbc:mysql://gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/contacts";
+    private static final String SERVER_URL = "jdbc:mysql://gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/";
+    private static final String USERNAME = "3f4EcWQAsYeGxbg.root";
+    private static final String PASSWORD = "T5v6Q4eoSdS4t809";
 
     private DatabaseHelper() { }
 
@@ -55,6 +55,15 @@ public final class DatabaseHelper {
 
     private static Connection connect() throws SQLException {
         return DriverManager.getConnection(URL, USERNAME, PASSWORD);
+    }
+
+    /** True only when the account table contains no accounts yet. */
+    public static boolean isUserTableEmpty() throws SQLException {
+        try (Connection connection = connect();
+             Statement statement = connection.createStatement();
+             ResultSet result = statement.executeQuery("SELECT 1 FROM users LIMIT 1")) {
+            return !result.next();
+        }
     }
 
     public static void createUser(String name, String address, String username,

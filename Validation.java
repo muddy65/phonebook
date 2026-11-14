@@ -17,6 +17,39 @@ public final class Validation {
 
     private Validation() { }
 
+    /** Creates the reserved administrator once, and only while the account table is empty. */
+    public static String createInitialAdmin(String name, String address, String email,
+                                            String phoneNumber, char[] password,
+                                            char[] confirmation) throws SQLException {
+        if (!DatabaseHelper.isUserTableEmpty()) {
+            return "Initial administrator setup has already been completed.";
+        }
+        if (isBlank(name) || isBlank(address) || isBlank(email) || isBlank(phoneNumber)
+                || password == null || confirmation == null) {
+            return "Please complete every field.";
+        }
+        if (name.trim().length() > 100 || address.trim().length() > 200) {
+            return "Name or address is too long.";
+        }
+        if (!EMAIL_PATTERN.matcher(email.trim()).matches() || email.trim().length() > 254) {
+            return "Enter a valid email address.";
+        }
+        if (!PHONE_PATTERN.matcher(phoneNumber.trim()).matches()) {
+            return "Enter a valid phone number (digits, spaces, +, parentheses, or hyphens).";
+        }
+        String passwordError = validatePassword(password);
+        if (passwordError != null) return passwordError;
+        if (!MessageDigest.isEqual(passwordBytes(password), passwordBytes(confirmation))) {
+            return "The passwords do not match.";
+        }
+
+        byte[] salt = new byte[SALT_BYTES];
+        RANDOM.nextBytes(salt);
+        DatabaseHelper.createUser(name.trim(), address.trim(), "muddy",
+                email.trim().toLowerCase(), phoneNumber.trim(), salt, hashPassword(password, salt));
+        return null;
+    }
+
     /** Returns null on success, otherwise a user-friendly validation message. */
     public static String signUp(String name, String address, String username,
                                 char[] password, char[] confirmation,
