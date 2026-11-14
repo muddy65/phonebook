@@ -12,7 +12,7 @@ A colorful desktop address book built with **Java Swing** and **MySQL**. Create 
 
 ## ⬇️ Download PhoneBook
 
-> **Release download:** [https://github.com/muddy65/phonebook/releases/download/v1.0.2/Phone.Book-1.0.2.exe](https://github.com/muddy65/phonebook/releases/download/v1.0.2/Phone.Book-1.0.2.exe)
+> **Release download:** [DOWNLOAD LINK](https://github.com/muddy65/phonebook/releases/download/v1.0.2/Phone.Book-1.0.2.exe)
 >
 > 
 
