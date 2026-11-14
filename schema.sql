@@ -1,0 +1,31 @@
+CREATE DATABASE IF NOT EXISTS contacts
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE contacts;
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    address VARCHAR(200) NOT NULL,
+    username VARCHAR(40) NOT NULL UNIQUE,
+    password_salt VARCHAR(64) NOT NULL,
+    password_hash VARCHAR(128) NOT NULL,
+    email VARCHAR(254) NOT NULL UNIQUE,
+    phone_number VARCHAR(20) NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS contacts (
+    id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL,
+    address VARCHAR(200) NOT NULL,
+    relationship VARCHAR(80) NOT NULL,
+    other_number VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_contacts_user_id (user_id),
+    CONSTRAINT fk_contacts_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
