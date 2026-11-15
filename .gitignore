@@ -2,6 +2,7 @@ bin/
 dist/
 input/
 out/
-.pem
-.jar
+*.class
+*.pem
+*.jar
 DatabaseHelper.java
