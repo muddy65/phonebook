@@ -3,7 +3,6 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -21,7 +20,7 @@ public class MainPage extends JPanel {
     private Runnable onLogout;
     private Runnable onAccountDeleted;
 
-    public MainPage(DatabaseHelper.UserAccount user) throws SQLException {
+    public MainPage(DatabaseHelper.UserAccount user) {
         this.user = user;
         setLayout(new BorderLayout(16, 16));
         setBackground(new Color(235, 242, 249));
@@ -174,17 +173,16 @@ public class MainPage extends JPanel {
     }
 
     private void refreshContacts() {
-        try {
-            List<DatabaseHelper.Contact> contacts = DatabaseHelper.getContacts(user.id);
+        BackgroundTask.run(this, () -> DatabaseHelper.getContacts(user.id), contacts -> {
             tableModel.setRowCount(0);
             for (DatabaseHelper.Contact contact : contacts) {
                 tableModel.addRow(new Object[]{contact.id, upper(contact.name), upper(contact.phoneNumber),
                         upper(contact.address), upper(contact.relationship), upper(contact.otherNumber)});
             }
             contactsCountLabel.setText("Your contacts  ·  " + contacts.size());
-        } catch (SQLException ex) {
+        }, ex -> {
             showDatabaseError(ex);
-        }
+        });
     }
 
     private void deleteSelectedContact() {
@@ -200,17 +198,17 @@ public class MainPage extends JPanel {
                 "Delete this contact from your phonebook?", "Delete contact",
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (answer != JOptionPane.YES_OPTION) return;
-        try {
-            if (DatabaseHelper.deleteContact(user.id, contactId)) {
+        BackgroundTask.run(this, () -> DatabaseHelper.deleteContact(user.id, contactId), deleted -> {
+            if (deleted) {
                 refreshContacts();
             } else {
                 JOptionPane.showMessageDialog(this, "That contact was already removed.",
                         "Contact not found", JOptionPane.INFORMATION_MESSAGE);
                 refreshContacts();
             }
-        } catch (SQLException ex) {
+        }, ex -> {
             showDatabaseError(ex);
-        }
+        });
     }
 
     private void deleteAccount() {
@@ -231,15 +229,19 @@ public class MainPage extends JPanel {
 
         char[] password = passwordCheck.getPassword();
         passwordCheck.setText("");
-        try {
+        BackgroundTask.run(this, () -> {
             Validation.LoginResult result = Validation.logIn(user.username, password);
             if (result.error != null) {
-                JOptionPane.showMessageDialog(this, "The password was not correct. Account kept.",
-                        "Deletion cancelled", JOptionPane.WARNING_MESSAGE);
-                return;
+                return "The password was not correct. Account kept.";
             }
             if (!DatabaseHelper.deleteUser(user.id)) {
-                JOptionPane.showMessageDialog(this, "The account could not be found.",
+                return "The account could not be found.";
+            }
+            return null;
+        }, error -> {
+            java.util.Arrays.fill(password, '\0');
+            if (error != null) {
+                JOptionPane.showMessageDialog(this, error,
                         "Account not deleted", JOptionPane.WARNING_MESSAGE);
                 return;
             }
@@ -247,11 +249,10 @@ public class MainPage extends JPanel {
                     "Account deleted", JOptionPane.INFORMATION_MESSAGE);
             if (onAccountDeleted != null) onAccountDeleted.run();
             else if (onLogout != null) onLogout.run();
-        } catch (SQLException ex) {
-            showDatabaseError(ex);
-        } finally {
+        }, ex -> {
             java.util.Arrays.fill(password, '\0');
-        }
+            showDatabaseError(ex);
+        });
     }
 
     private void showAddContactDialog() {
@@ -289,14 +290,16 @@ public class MainPage extends JPanel {
                 JOptionPane.showMessageDialog(dialog, error, "Check contact details", JOptionPane.WARNING_MESSAGE);
                 return;
             }
-            try {
+            BackgroundTask.run(dialog, () -> {
                 DatabaseHelper.addContact(user.id, name.trim(), phone.trim(), address.trim(),
                         relationship.trim(), other.trim());
+                return null;
+            }, ignored -> {
                 refreshContacts();
                 dialog.dispose();
-            } catch (SQLException ex) {
+            }, ex -> {
                 showDatabaseError(ex);
-            }
+            });
         });
         buttons.add(cancelButton);
         buttons.add(saveButton);

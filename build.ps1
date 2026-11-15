@@ -101,7 +101,7 @@ if (Test-Path "phonebook.ico") {
   --type exe `
   --temp $packageTemp `
   --name "Phone Book" `
-  --app-version "1.0.2" `
+  --app-version "1.0.3" `
   --vendor "muddy" `
   --input "input" `
   --main-jar "phonebook.jar" `

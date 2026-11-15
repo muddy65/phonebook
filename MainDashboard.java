@@ -1,6 +1,5 @@
 import javax.swing.*;
 import java.awt.*;
-import java.sql.SQLException;
 
 public class MainDashboard extends JFrame {
     private final JPanel mainPanel;
@@ -11,7 +10,7 @@ public class MainDashboard extends JFrame {
     private final AdminSetupPage adminSetupPage;
     private Component activeWorkspace;
 
-    public MainDashboard() throws SQLException {
+    public MainDashboard() {
         super("PhoneBook");
         Image phonebookIcon = AuthPageStyle.loadPhonebookImage();
         if (phonebookIcon != null) setIconImage(phonebookIcon);
@@ -40,15 +39,38 @@ public class MainDashboard extends JFrame {
         mainPanel.add(signupPage.getContentPanel(), "SIGNUP");
         mainPanel.add(passwordResetPage.getContentPanel(), "RESET");
         mainPanel.add(adminSetupPage.getContentPanel(), "ADMIN_SETUP");
+        mainPanel.add(createStartupPanel(), "STARTUP");
         add(mainPanel);
-        cardLayout.show(mainPanel, DatabaseHelper.isUserTableEmpty() ? "ADMIN_SETUP" : "LOGIN");
+        cardLayout.show(mainPanel, "STARTUP");
+    }
+
+    private JPanel createStartupPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(new Color(241, 245, 249));
+        JLabel status = new JLabel("Connecting securely to PhoneBook…");
+        status.setFont(new Font("SansSerif", Font.BOLD, 18));
+        status.setForeground(AuthPageStyle.NAVY);
+        panel.add(status);
+        return panel;
+    }
+
+    private void initializeApplication() {
+        BackgroundTask.run(this, () -> {
+            DatabaseHelper.initialize();
+            return DatabaseHelper.isUserTableEmpty();
+        }, isFirstRun -> cardLayout.show(mainPanel, isFirstRun ? "ADMIN_SETUP" : "LOGIN"), ex -> {
+            showDatabaseError(ex);
+            dispose();
+        });
     }
 
     private void createInitialAdmin(String name, String address, String email, String phoneNumber,
                                     char[] password, char[] confirmation) {
-        try {
-            String error = Validation.createInitialAdmin(name, address, email, phoneNumber,
-                    password, confirmation);
+        BackgroundTask.run(this, () -> Validation.createInitialAdmin(name, address, email, phoneNumber,
+                password, confirmation), error -> {
+            clear(password);
+            clear(confirmation);
+            adminSetupPage.clearPasswords();
             if (error != null) {
                 JOptionPane.showMessageDialog(this, error, "Administrator setup",
                         JOptionPane.WARNING_MESSAGE);
@@ -58,20 +80,21 @@ public class MainDashboard extends JFrame {
                     "Administrator account created. You can now log in as muddy.",
                     "Setup complete", JOptionPane.INFORMATION_MESSAGE);
             cardLayout.show(mainPanel, "LOGIN");
-        } catch (SQLException ex) {
-            showDatabaseError(ex);
-        } finally {
+        }, ex -> {
             clear(password);
             clear(confirmation);
             adminSetupPage.clearPasswords();
-        }
+            showDatabaseError(ex);
+        });
     }
 
     private void signUp(String name, String address, String username, char[] password,
                         char[] confirmation, String email, String phoneNumber) {
-        try {
-            String error = Validation.signUp(name, address, username, password,
-                    confirmation, email, phoneNumber);
+        BackgroundTask.run(this, () -> Validation.signUp(name, address, username, password,
+                confirmation, email, phoneNumber), error -> {
+            clear(password);
+            clear(confirmation);
+            signupPage.clearPasswords();
             if (error != null) {
                 JOptionPane.showMessageDialog(this, error, "Check signup details",
                         JOptionPane.WARNING_MESSAGE);
@@ -80,18 +103,18 @@ public class MainDashboard extends JFrame {
             JOptionPane.showMessageDialog(this, "Account created. You can now log in.",
                     "Signup complete", JOptionPane.INFORMATION_MESSAGE);
             cardLayout.show(mainPanel, "LOGIN");
-        } catch (SQLException ex) {
-            showDatabaseError(ex);
-        } finally {
+        }, ex -> {
             clear(password);
             clear(confirmation);
             signupPage.clearPasswords();
-        }
+            showDatabaseError(ex);
+        });
     }
 
     private void logIn(String username, char[] password) {
-        try {
-            Validation.LoginResult result = Validation.logIn(username, password);
+        BackgroundTask.run(this, () -> Validation.logIn(username, password), result -> {
+            clear(password);
+            loginPage.clearPassword();
             if (result.error != null) {
                 JOptionPane.showMessageDialog(this, result.error, "Login failed",
                         JOptionPane.WARNING_MESSAGE);
@@ -108,23 +131,18 @@ public class MainDashboard extends JFrame {
                 dashboard.setOnAccountDeleted(() -> cardLayout.show(mainPanel, "LOGIN"));
                 showWorkspace(dashboard, "DASHBOARD");
             }
-        } catch (SQLException ex) {
-            showDatabaseError(ex);
-        } finally {
+        }, ex -> {
             clear(password);
             loginPage.clearPassword();
-        }
+            showDatabaseError(ex);
+        });
     }
 
     private void showAdminPhonebook(DatabaseHelper.UserAccount admin, AdminPage adminPage) {
-        try {
-            MainPage phonebook = new MainPage(admin);
-            phonebook.setNavigation("Back to admin", () -> showWorkspace(adminPage, "ADMIN"));
-            phonebook.setOnAccountDeleted(() -> cardLayout.show(mainPanel, "LOGIN"));
-            showWorkspace(phonebook, "ADMIN_PHONEBOOK");
-        } catch (SQLException ex) {
-            showDatabaseError(ex);
-        }
+        MainPage phonebook = new MainPage(admin);
+        phonebook.setNavigation("Back to admin", () -> showWorkspace(adminPage, "ADMIN"));
+        phonebook.setOnAccountDeleted(() -> cardLayout.show(mainPanel, "LOGIN"));
+        showWorkspace(phonebook, "ADMIN_PHONEBOOK");
     }
 
     private void showWorkspace(Component workspace, String cardName) {
@@ -137,8 +155,10 @@ public class MainDashboard extends JFrame {
     }
 
     private void resetPassword(String username, String email, char[] password, char[] confirmation) {
-        try {
-            String error = Validation.resetPassword(username, email, password, confirmation);
+        BackgroundTask.run(this, () -> Validation.resetPassword(username, email, password, confirmation), error -> {
+            clear(password);
+            clear(confirmation);
+            passwordResetPage.clearPasswords();
             if (error != null) {
                 JOptionPane.showMessageDialog(this, error, "Password reset",
                         JOptionPane.WARNING_MESSAGE);
@@ -147,13 +167,12 @@ public class MainDashboard extends JFrame {
             JOptionPane.showMessageDialog(this, "Your password has been updated. You can log in now.",
                     "Password updated", JOptionPane.INFORMATION_MESSAGE);
             cardLayout.show(mainPanel, "LOGIN");
-        } catch (SQLException ex) {
-            showDatabaseError(ex);
-        } finally {
+        }, ex -> {
             clear(password);
             clear(confirmation);
             passwordResetPage.clearPasswords();
-        }
+            showDatabaseError(ex);
+        });
     }
 
     private void showDatabaseError(Exception ex) {
@@ -168,14 +187,9 @@ public class MainDashboard extends JFrame {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            try {
-                DatabaseHelper.initialize();
-                new MainDashboard().setVisible(true);
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(null,
-                        "PhoneBook could not start: " + ex.getMessage(),
-                        "Startup error", JOptionPane.ERROR_MESSAGE);
-            }
+            MainDashboard dashboard = new MainDashboard();
+            dashboard.setVisible(true);
+            dashboard.initializeApplication();
         });
     }
 }

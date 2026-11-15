@@ -1,7 +1,6 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Locale;
 
@@ -98,8 +97,7 @@ public class AdminPage extends JPanel {
     }
 
     private void refreshUsers() {
-        try {
-            List<DatabaseHelper.UserSummary> users = DatabaseHelper.getAllUsers();
+        BackgroundTask.run(this, DatabaseHelper::getAllUsers, users -> {
             usersModel.setRowCount(0);
             for (DatabaseHelper.UserSummary user : users) {
                 usersModel.addRow(new Object[]{upper(user.name), upper(user.username), user.email,
@@ -107,11 +105,11 @@ public class AdminPage extends JPanel {
             }
             usersCountLabel.setText(users.size() + (users.size() == 1
                     ? " account in your phonebook" : " accounts in your phonebook"));
-        } catch (SQLException ex) {
+        }, ex -> {
             usersCountLabel.setText("Could not load accounts from the database.");
             JOptionPane.showMessageDialog(this, "Could not load users: " + ex.getMessage(),
                     "Database error", JOptionPane.ERROR_MESSAGE);
-        }
+        });
     }
 
     private void styleTable(JTable table) {
